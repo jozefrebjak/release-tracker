@@ -4,7 +4,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 FROM base AS tailwind
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# hadolint ignore=DL3008
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 RUN curl -sLO https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.3/tailwindcss-linux-x64 \
     && chmod +x tailwindcss-linux-x64
 COPY app/static/ ./app/static/
