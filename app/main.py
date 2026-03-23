@@ -146,6 +146,31 @@ async def load_settings_dict() -> dict:
 
 
 
+async def _fetch_changelog_section(client: httpx.AsyncClient, owner: str, repo: str, tag: str, headers: dict) -> str:
+    """Try to fetch the relevant section from CHANGELOG.md for a given tag."""
+    for branch in ["develop", "main", "master", tag]:
+        url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/CHANGELOG.md"
+        try:
+            r = await client.get(url, headers=headers)
+            if r.status_code != 200:
+                continue
+            text = r.text
+            version = tag.lstrip("v")
+            patterns = [
+                rf'(## \[?{re.escape(version)}\]?.*?)(?=\n## |\Z)',
+                rf'(## \[?{re.escape(tag)}\]?.*?)(?=\n## |\Z)',
+            ]
+            for pattern in patterns:
+                match = re.search(pattern, text, re.DOTALL)
+                if match:
+                    section = match.group(1).strip()
+                    return section[:3000]
+            return ""
+        except Exception:
+            continue
+    return ""
+
+
 async def fetch_releases(owner: str, repo: str) -> list[dict]:
     headers = {"Accept": "application/vnd.github+json"}
     if GITHUB_TOKEN:
@@ -162,6 +187,14 @@ async def fetch_releases(owner: str, repo: str) -> list[dict]:
             return []
         releases = r.json()
         if releases:
+            for rel in releases:
+                body = rel.get("body", "") or ""
+                if len(body) < 200 or "CHANGELOG.md" in body:
+                    changelog = await _fetch_changelog_section(
+                        client, owner, repo, rel.get("tag_name", ""), headers,
+                    )
+                    if changelog:
+                        rel["body"] = changelog
             return releases
 
         # Fallback to tags if no releases
