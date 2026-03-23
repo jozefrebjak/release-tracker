@@ -157,15 +157,14 @@ async def _fetch_changelog_section(client: httpx.AsyncClient, owner: str, repo: 
             text = r.text
             version = tag.lstrip("v")
             patterns = [
-                rf'(## \[?{re.escape(version)}\]?.*?)(?=\n## |\Z)',
                 rf'(## \[?{re.escape(tag)}\]?.*?)(?=\n## |\Z)',
+                rf'(## \[?{re.escape(version)}\]?.*?)(?=\n## |\Z)',
             ]
             for pattern in patterns:
                 match = re.search(pattern, text, re.DOTALL)
                 if match:
                     section = match.group(1).strip()
                     return section[:3000]
-            return ""
         except Exception:
             continue
     return ""
