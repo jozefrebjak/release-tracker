@@ -618,7 +618,7 @@ async def _call_ai(api_key: str, model: str, system: str, user_content: str) -> 
 
 
 async def summarize_release(owner: str, repo: str, tag: str, body: str) -> str:
-    if not body:
+    if not body or len(body.strip()) < 50:
         return ""
     settings = await load_settings_dict()
     ai_enabled = settings.get("ai_enabled", "false") == "true"
