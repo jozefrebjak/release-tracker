@@ -7,10 +7,13 @@ FROM base AS tailwind
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-RUN curl -sLO https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.3/tailwindcss-linux-x64 \
-    && chmod +x tailwindcss-linux-x64
+ARG TARGETARCH
+RUN ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "arm64" || echo "x64") \
+    && curl -sLO "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.3/tailwindcss-linux-${ARCH}" \
+    && chmod +x "tailwindcss-linux-${ARCH}" \
+    && mv "tailwindcss-linux-${ARCH}" tailwindcss
 COPY app/static/ ./app/static/
-RUN ./tailwindcss-linux-x64 -i app/static/input.css -o app/static/style.css --minify
+RUN ./tailwindcss -i app/static/input.css -o app/static/style.css --minify
 
 FROM base
 RUN groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin app \
