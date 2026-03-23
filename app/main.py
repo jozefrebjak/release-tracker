@@ -519,6 +519,19 @@ def extract_plain_summary(body: str) -> str:
     return "\n".join(lines[:5])
 
 
+def _strip_markdown(text: str) -> str:
+    """Convert markdown to plain text for Signal notifications."""
+    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    text = re.sub(r'\*(.+?)\*', r'\1', text)
+    text = re.sub(r'`(.+?)`', r'\1', text)
+    text = re.sub(r'^\s*[-*]\s+', '• ', text, flags=re.MULTILINE)
+    text = re.sub(r'^\s*\d+\.\s+', '• ', text, flags=re.MULTILINE)
+    text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
+
 def _build_ai_system_prompt(lang: str) -> str:
     lang_name = "Slovak" if lang == "sk" else "English"
     return (
@@ -665,7 +678,7 @@ async def check_releases():
                     )
                     await db.commit()
 
-                    message = f"📦 {owner}/{repo} {tag}\n\n{summary}\n\n🔗 https://github.com/{owner}/{repo}/releases/tag/{tag}"
+                    message = f"📦 {owner}/{repo} {tag}\n\n{_strip_markdown(summary)}\n\n🔗 https://github.com/{owner}/{repo}/releases/tag/{tag}"
                     await send_signal(message)
                     log.info(f"New release: {owner}/{repo} {tag}")
 
@@ -701,7 +714,7 @@ async def check_releases():
                     )
                     await db.commit()
 
-                    message = f"📰 {feed_name}: {title}\n\n{summary}\n\n🔗 {post_url}"
+                    message = f"📰 {feed_name}: {title}\n\n{_strip_markdown(summary)}\n\n🔗 {post_url}"
                     await send_signal(message)
                     log.info(f"New feed entry: {feed_name} - {title}")
     except Exception as e:
