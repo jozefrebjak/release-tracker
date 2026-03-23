@@ -519,12 +519,9 @@ def extract_plain_summary(body: str) -> str:
     return "\n".join(lines[:5])
 
 
-def _strip_markdown(text: str) -> str:
-    """Convert markdown to plain text for Signal notifications."""
-    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
-    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
-    text = re.sub(r'\*(.+?)\*', r'\1', text)
-    text = re.sub(r'`(.+?)`', r'\1', text)
+def _md_to_signal(text: str) -> str:
+    """Convert markdown to Signal styled text format."""
+    text = re.sub(r'^#{1,6}\s+(.+)$', r'**\1**', text, flags=re.MULTILINE)
     text = re.sub(r'^\s*[-*]\s+', '• ', text, flags=re.MULTILINE)
     text = re.sub(r'^\s*\d+\.\s+', '• ', text, flags=re.MULTILINE)
     text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
@@ -632,6 +629,7 @@ async def send_signal(message: str):
             "message": message,
             "number": sender,
             "recipients": [recipient],
+            "text_mode": "styled",
         }, ensure_ascii=False)
         async with httpx.AsyncClient() as client:
             await client.post(
@@ -678,7 +676,7 @@ async def check_releases():
                     )
                     await db.commit()
 
-                    message = f"📦 {owner}/{repo} {tag}\n\n{_strip_markdown(summary)}\n\n🔗 https://github.com/{owner}/{repo}/releases/tag/{tag}"
+                    message = f"📦 {owner}/{repo} {tag}\n\n{_md_to_signal(summary)}\n\n🔗 https://github.com/{owner}/{repo}/releases/tag/{tag}"
                     await send_signal(message)
                     log.info(f"New release: {owner}/{repo} {tag}")
 
@@ -714,7 +712,7 @@ async def check_releases():
                     )
                     await db.commit()
 
-                    message = f"📰 {feed_name}: {title}\n\n{_strip_markdown(summary)}\n\n🔗 {post_url}"
+                    message = f"📰 {feed_name}: {title}\n\n{_md_to_signal(summary)}\n\n🔗 {post_url}"
                     await send_signal(message)
                     log.info(f"New feed entry: {feed_name} - {title}")
     except Exception as e:
@@ -945,9 +943,10 @@ async def test_signal():
         raise HTTPException(400, "Signal API URL points to a private/internal network")
     try:
         payload = json.dumps({
-            "message": "🧪 Test from GitHub Release Tracker",
+            "message": "🧪 **Test** from *Release Tracker*",
             "number": sender,
             "recipients": [recipient],
+            "text_mode": "styled",
         }, ensure_ascii=False)
         async with httpx.AsyncClient() as client:
             r = await client.post(
